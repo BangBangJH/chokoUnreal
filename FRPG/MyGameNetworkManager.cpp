@@ -66,3 +66,32 @@ void AMyGameNetworkManager::CloseConnection()
         ClientSocket = nullptr;
     }
 }
+
+bool AMyGameNetworkManager::ReceiveData(FString& OutReceivedData)
+{
+    if (!ClientSocket) return false;
+
+    // 수신 버퍼 준비
+    TArray<uint8> ReceivedData;
+    uint32 Size;
+    while (ClientSocket->HasPendingData(Size))
+    {
+        ReceivedData.Init(0, FMath::Min(Size, 65507u));
+
+        int32 Read = 0;
+        ClientSocket->Recv(ReceivedData.GetData(), ReceivedData.Num(), Read);
+
+        if (Read > 0) {
+            // 수신된 데이터를 FString으로 변환
+            FString ReceivedString = FString(ANSI_TO_TCHAR(reinterpret_cast<const char*>(ReceivedData.GetData())));
+            OutReceivedData += ReceivedString;
+            UE_LOG(LogTemp, Warning, TEXT("Received data: %s"), *ReceivedString);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("Read < 0"));
+        }
+    }
+
+    return true;
+}

@@ -30,6 +30,8 @@ protected:
 
 	void OpenInventory();
 
+	void TestInventory();
+
 public:
 	//UFUNCTION(reliable, server)
 	void SetNewDestination(const FVector Destination);

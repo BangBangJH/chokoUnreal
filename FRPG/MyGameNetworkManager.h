@@ -39,6 +39,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Network")
     void CloseConnection();
 
+    UFUNCTION(BlueprintCallable, Category = "Network")
+    bool ReceiveData(FString& OutReceivedData);
+
 private:
     // Client socket
     FSocket* ClientSocket;

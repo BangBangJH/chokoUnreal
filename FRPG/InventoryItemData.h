@@ -30,5 +30,5 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int32 Item_Count;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 Iten_Index;
+	int32 Item_Index;
 };

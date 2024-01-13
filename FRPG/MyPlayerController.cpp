@@ -4,6 +4,7 @@
 #include "MyPlayerController.h"
 #include <Blueprint/AIBlueprintHelperLibrary.h>
 #include <Blueprint/UserWidget.h>
+#include "InventoryUI.h"
 
 AMyPlayerController::AMyPlayerController()
 {
@@ -36,6 +37,7 @@ void AMyPlayerController::SetupInputComponent()
 	InputComponent->BindAction("RightClick", EInputEvent::IE_Pressed, this, &AMyPlayerController::InputRightMouseButtonPressed);
 	InputComponent->BindAction("RightClick", EInputEvent::IE_Released, this, &AMyPlayerController::InputRightMouseButtonReleased);
 	InputComponent->BindAction("Inventory", EInputEvent::IE_Pressed, this, &AMyPlayerController::OpenInventory);
+	InputComponent->BindAction("Test1", EInputEvent::IE_Pressed, this, &AMyPlayerController::TestInventory);
 }
 
 void AMyPlayerController::SetNewDestination(const FVector Destination)
@@ -44,7 +46,7 @@ void AMyPlayerController::SetNewDestination(const FVector Destination)
 	if (PlayerPawn)
 	{
 		float const Distance = FVector::Dist(PlayerPawn->GetActorLocation(), Destination);
-		if(Distance > 120.f)
+		if(Distance > 10.f)
 		{ 
 			Server_MovePlayer(this, Destination);
 		}
@@ -106,6 +108,15 @@ void AMyPlayerController::OpenInventory()
 			UI_Iventory->SetVisibility(ESlateVisibility::Visible);
 		}
 
+	}
+}
+
+void AMyPlayerController::TestInventory()
+{
+	if (UI_Iventory)
+	{
+		UInventoryUI* InvenUI = Cast<UInventoryUI>(UI_Iventory);
+		InvenUI->TestItem();
 	}
 }
 
