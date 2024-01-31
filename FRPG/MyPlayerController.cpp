@@ -5,6 +5,7 @@
 #include <Blueprint/AIBlueprintHelperLibrary.h>
 #include <Blueprint/UserWidget.h>
 #include "InventoryUI.h"
+#include <NavigationSystem.h>
 
 AMyPlayerController::AMyPlayerController()
 {
@@ -40,18 +41,6 @@ void AMyPlayerController::SetupInputComponent()
 	InputComponent->BindAction("Test1", EInputEvent::IE_Pressed, this, &AMyPlayerController::TestInventory);
 }
 
-void AMyPlayerController::SetNewDestination(const FVector Destination)
-{
-	APawn* const PlayerPawn = GetPawn();
-	if (PlayerPawn)
-	{
-		float const Distance = FVector::Dist(PlayerPawn->GetActorLocation(), Destination);
-		if(Distance > 10.f)
-		{ 
-			Server_MovePlayer(this, Destination);
-		}
-	}
-}
 
 void AMyPlayerController::Server_MovePlayer_Implementation(APlayerController* PlayerCtr, FVector Destination)
 {
@@ -65,40 +54,66 @@ void AMyPlayerController::Multicast_MovePlayer_Implementation(APlayerController*
 
 void AMyPlayerController::MovePlayer(APlayerController* PlayerCtr, FVector Destination)
 {
-	UAIBlueprintHelperLibrary::SimpleMoveToLocation(PlayerCtr, Destination);
+	APawn* ControlledPawn = PlayerCtr->GetPawn();
+	if (ControlledPawn != nullptr)
+	{
+		FVector WorldDirection = Destination - ControlledPawn->GetActorLocation(); //캐릭터, Destination 벡터값으로 방향 계산
+		WorldDirection.Z = 0;
+		if(WorldDirection.Length() <= 150.f)
+		{
+			WorldDirection.GetUnsafeNormal();
+			ControlledPawn->AddMovementInput(WorldDirection * 50.0f); //전진벡터 값으로 이동, 값을 곱해줘야 가까울때도 빠르게 이동
+		}
+		else
+		{
+			UNavigationSystemV1* NavSys = PlayerCtr ? FNavigationSystem::GetCurrent<UNavigationSystemV1>(PlayerCtr->GetWorld()) : nullptr;
+			const FVector AgentNavLocation = PlayerCtr->GetNavAgentLocation();
+			const ANavigationData* NavData = NavSys->GetNavDataForProps(PlayerCtr->GetNavAgentPropertiesRef(), AgentNavLocation);
+			FPathFindingQuery Query(PlayerCtr, *NavData, AgentNavLocation, Destination);
+			UNavigationSystemV1* NavSystem = UNavigationSystemV1::GetNavigationSystem(GetWorld());
+			if (NavSystem->TestPathSync(Query)) //네비로 갈 수 있으면
+			{
+				UAIBlueprintHelperLibrary::SimpleMoveToLocation(PlayerCtr, Destination); //네비메쉬 이동
+			}
+			else
+			{
+				WorldDirection.GetUnsafeNormal();
+				ControlledPawn->AddMovementInput(WorldDirection * 50.0f); //전진벡터 값으로 이동, 값을 곱해줘야 가까울때도 빠르게 이동
+			}
+		}
+
+	}
+
 }
+
 
 
 void AMyPlayerController::MoveToMouseCursor()
 {
 	FHitResult Hit;
-	GetHitResultUnderCursor(ECC_Visibility, false, Hit);
-	if (Hit.bBlockingHit)
+	bool bHit = GetHitResultUnderCursor(ECC_Visibility, true, Hit);
+	if (bHit)
 	{
-		SetNewDestination(Hit.ImpactPoint);
+		Server_MovePlayer(this, Hit.Location);
 	}
 }
 
 void AMyPlayerController::OpenInventory()
 {
-	UE_LOG(LogTemp, Log, TEXT("Open"));
 	if (!UI_Iventory) // 인벤토리 UI 생성 확인, 없으면 생성
 	{
-		UE_LOG(LogTemp, Log, TEXT("Open2"));
 		if (UI_Inventory_Class)
 		{
 			UI_Iventory = CreateWidget(GetWorld(), UI_Inventory_Class);
 			if (UI_Iventory)
 			{
 				UI_Iventory->AddToViewport();
-				UE_LOG(LogTemp, Log, TEXT("Open4"));
 			}
 		}
 	}
 	else
 	{
 		// 생성 이후 껐다 켰다
-		UE_LOG(LogTemp, Log, TEXT("Open3"));
 		if (UI_Iventory->GetVisibility() != ESlateVisibility::Hidden)
 		{
 			UI_Iventory->SetVisibility(ESlateVisibility::Hidden);

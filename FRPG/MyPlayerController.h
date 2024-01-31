@@ -33,8 +33,6 @@ protected:
 	void TestInventory();
 
 public:
-	//UFUNCTION(reliable, server)
-	void SetNewDestination(const FVector Destination);
 	UFUNCTION(Server, Unreliable)
 	void Server_MovePlayer(APlayerController* PlayerCtr, FVector Destination);
 	void Server_MovePlayer_Implementation(APlayerController* PlayerCtr, FVector Destination);
@@ -46,4 +44,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI")
 	TSubclassOf<UUserWidget> UI_Inventory_Class;
 	UUserWidget* UI_Iventory;
+
+private:
+
 };
