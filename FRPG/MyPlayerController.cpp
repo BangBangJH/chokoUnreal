@@ -6,6 +6,7 @@
 #include <Blueprint/UserWidget.h>
 #include "InventoryUI.h"
 #include <NavigationSystem.h>
+#include "PlayerCharacter.h"
 
 AMyPlayerController::AMyPlayerController()
 {
@@ -16,7 +17,7 @@ AMyPlayerController::AMyPlayerController()
 void AMyPlayerController::PlayerTick(float DeltaTime)
 {
 	Super::PlayerTick(DeltaTime);
-	if (bClickRightMouse)
+	if (bClickRightMouse && bMoveAble)
 	{
 		MoveToMouseCursor();
 	}
@@ -57,10 +58,16 @@ void AMyPlayerController::MovePlayer(APlayerController* PlayerCtr, FVector Desti
 	APawn* ControlledPawn = PlayerCtr->GetPawn();
 	if (ControlledPawn != nullptr)
 	{
+		APlayerCharacter* PlayerCharacter = Cast<APlayerCharacter>(PlayerCtr->GetCharacter());
+		if (PlayerCharacter->bAttack)
+		{
+			PlayerCharacter->AttackEnd(); //이동 입력시 캐릭터 공격 종료
+		}
 		FVector WorldDirection = Destination - ControlledPawn->GetActorLocation(); //캐릭터, Destination 벡터값으로 방향 계산
 		WorldDirection.Z = 0;
 		if(WorldDirection.Length() <= 150.f)
 		{
+			StopMovement();
 			WorldDirection.GetUnsafeNormal();
 			ControlledPawn->AddMovementInput(WorldDirection * 50.0f); //전진벡터 값으로 이동, 값을 곱해줘야 가까울때도 빠르게 이동
 		}
@@ -133,6 +140,17 @@ void AMyPlayerController::TestInventory()
 		UInventoryUI* InvenUI = Cast<UInventoryUI>(UI_Iventory);
 		InvenUI->TestItem();
 	}
+}
+
+void AMyPlayerController::MoveUnable()
+{
+	StopMovement();
+	bMoveAble = false;
+}
+
+void AMyPlayerController::MoveAble()
+{
+	bMoveAble = true;
 }
 
 

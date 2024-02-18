@@ -6,6 +6,11 @@
 #include <GameFramework/SpringArmComponent.h>
 #include <GameFramework/CharacterMovementComponent.h>
 #include <Kismet/KismetMathLibrary.h>
+#include <Kismet/GameplayStatics.h>
+#include <NiagaraSystem.h>
+#include <NiagaraFunctionLibrary.h>
+#include "MyPlayerController.h"
+#include "PlayerWeapon.h"
 
 // Sets default values
 APlayerCharacter::APlayerCharacter()
@@ -37,6 +42,7 @@ void APlayerCharacter::BeginPlay()
 	CameraValue = FVector(PlayerCamSpringArm->TargetArmLength, PlayerCamSpringArm->GetDesiredRotation().Pitch, PlayerCamSpringArm->GetDesiredRotation().Yaw);
 	CameraZoomValue = CameraValue - FVector(350,-45,0);
 	UE_LOG(LogTemp, Log, TEXT("Value = %s"), *CameraValue.ToString());
+	PlayerCtr = Cast<AMyPlayerController>(GetController());
 }
 
 // Called every frame
@@ -59,6 +65,8 @@ void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 	InputComponent->BindAction("CameraZoomIn", IE_Pressed, this, &APlayerCharacter::CameraZoomIn);
 	InputComponent->BindAction("CameraZoomOut", IE_Pressed, this, &APlayerCharacter::CameraZoomOut);
+	InputComponent->BindAction("SpawnWeapon", IE_Pressed, this, &APlayerCharacter::SpawnWeapon);
+	InputComponent->BindAction("Attack", IE_Pressed, this, &APlayerCharacter::Attack);
 }
 
 
@@ -142,8 +150,98 @@ void APlayerCharacter::ReceiveCharacterData(FString StringData) // 데이터 받아서
 	Rc_Velocity.InitFromString(DataArray[2]);
 }
 
-void APlayerCharacter::RC_Move()
+void APlayerCharacter::RC_Move() // Doll이면 틱마다 값으로 이동
 {
-	this->AddMovementInput(Rc_Velocity);
+	this->AddMovementInput(Rc_Velocity); 
+}
+
+void APlayerCharacter::SpawnWeapon()
+{
+	if (PlayerWeapon == nullptr && WeaponClass)
+	{
+		PlayerWeapon = Cast<APlayerWeapon>(GetWorld()->SpawnActor(WeaponClass));
+		if (PlayerWeapon)
+		{
+			PlayerWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, FName(TEXT("WeaponSocket"))); //메쉬 소켓에 엑터 장착
+			if (NS_Weapon)
+			{
+				UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, NS_Weapon, PlayerWeapon->GetActorLocation()); //이펙트 생성
+			}
+			PlayerWeapon->Dele_Attack.BindUFunction(this, FName("ApplyDamage")); // 공격함수 델리게이트 삽입
+			IsBattle = true;
+		}
+	}
+	else
+	{
+		PlayerWeapon->Destroy();
+		PlayerWeapon = nullptr;
+		IsBattle = false;
+	}
+}
+
+void APlayerCharacter::AttackEnd() //공격 애니메이션 종료 타이밍
+{
+	PlayerCtr->MoveAble();
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	if (AnimInstance)
+	{
+		AnimInstance->Montage_Stop(0.2f, AttackMontage);
+		bAttack = false;
+		bWaitComboInput = false;
+		bComboInput = false;
+	}
+	if (PlayerWeapon)
+	{
+		PlayerWeapon->Weapon_OffCollision();
+	}
+
+}
+
+void APlayerCharacter::MoveAbleChange(bool Able) //움직임 제한 설정
+{
+	PlayerCtr->bMoveAble = Able;
+}
+
+void APlayerCharacter::AttackTimeOver() //히트 타이밍 종료시 콜리전 끄기
+{
+	PlayerWeapon->Weapon_OffCollision();
+}
+
+
+void APlayerCharacter::Attack() //Attack 키 입력시 공격 및 콤보 공격
+{
+	if (IsBattle && AttackMontage)
+	{
+		if (!bAttack)
+		{
+			PlayerCtr->MoveUnable();
+			PlayAnimMontage(AttackMontage);
+			bAttack = true;
+			if (PlayerWeapon)
+			{
+				PlayerWeapon->Weapon_OnCollision();
+			}
+		}
+		else if (bWaitComboInput) //콤보공격 대기 중 이라면
+		{
+			bComboInput = true;
+			if (PlayerWeapon)
+			{
+				PlayerWeapon->Weapon_OnCollision();
+			}
+		}
+
+
+	}
+}
+
+void APlayerCharacter::ApplyDamage(AActor*& Target) //델리게이트에 넣을 데미지 함수
+{
+	if (Target)
+	{
+		UE_LOG(LogTemp, Log, TEXT("ApplyDamage"));
+		UGameplayStatics::ApplyDamage(Target, 10.0f, PlayerCtr, this, NULL);
+	}
+
 }
 

@@ -32,6 +32,7 @@ protected:
 
 	void TestInventory();
 
+
 public:
 	UFUNCTION(Server, Unreliable)
 	void Server_MovePlayer(APlayerController* PlayerCtr, FVector Destination);
@@ -40,6 +41,10 @@ public:
 	void Multicast_MovePlayer(APlayerController* PlayerCtr,FVector Destination);
 	void Multicast_MovePlayer_Implementation(APlayerController* PlayerCtr, FVector Destination);
 	void MovePlayer(APlayerController* PlayerCtr, FVector Destination);
+
+	bool bMoveAble = true;
+	void MoveUnable();
+	void MoveAble();
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI")
 	TSubclassOf<UUserWidget> UI_Inventory_Class;
